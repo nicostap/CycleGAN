@@ -26,7 +26,7 @@ def train_fn(
         batik = batik.to(config.DEVICE)
 
         # Train Discriminators H and Z
-        with torch.cuda.amp.autocast() if use_amp else torch.no_grad():
+        with torch.cuda.amp.autocast() if use_amp else torch.enable_grad():
             fake_batik = gen_H(image)
             D_H_real = disc_H(batik)
             D_H_fake = disc_H(fake_batik.detach())
@@ -56,7 +56,7 @@ def train_fn(
             opt_disc.step()
 
         # Train Generators H and Z
-        with torch.cuda.amp.autocast() if use_amp else torch.no_grad():
+        with torch.cuda.amp.autocast() if use_amp else torch.enable_grad():
             # adversarial loss for both generators
             D_H_fake = disc_H(fake_batik)
             D_Z_fake = disc_Z(fake_image)
