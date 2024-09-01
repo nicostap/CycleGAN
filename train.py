@@ -19,12 +19,14 @@ def train_fn(
     H_fakes = 0
     loop = tqdm(loader, leave=True)
 
+    use_amp = torch.cuda.is_available()
+
     for idx, (image, batik) in enumerate(loop):
         image = image.to(config.DEVICE)
         batik = batik.to(config.DEVICE)
 
         # Train Discriminators H and Z
-        with torch.cuda.amp.autocast():
+        with torch.cuda.amp.autocast() if use_amp else torch.no_grad():
             fake_batik = gen_H(image)
             D_H_real = disc_H(batik)
             D_H_fake = disc_H(fake_batik.detach())
@@ -41,16 +43,20 @@ def train_fn(
             D_Z_fake_loss = mse(D_Z_fake, torch.zeros_like(D_Z_fake))
             D_Z_loss = D_Z_real_loss + D_Z_fake_loss
 
-            # put it togethor
+            # put it together
             D_loss = (D_H_loss + D_Z_loss) / 2
 
         opt_disc.zero_grad()
-        d_scaler.scale(D_loss).backward()
-        d_scaler.step(opt_disc)
-        d_scaler.update()
+        if d_scaler:
+            d_scaler.scale(D_loss).backward()
+            d_scaler.step(opt_disc)
+            d_scaler.update()
+        else:
+            D_loss.backward()
+            opt_disc.step()
 
         # Train Generators H and Z
-        with torch.cuda.amp.autocast():
+        with torch.cuda.amp.autocast() if use_amp else torch.no_grad():
             # adversarial loss for both generators
             D_H_fake = disc_H(fake_batik)
             D_Z_fake = disc_Z(fake_image)
@@ -69,7 +75,7 @@ def train_fn(
             identity_image_loss = l1(image, identity_image)
             identity_batik_loss = l1(batik, identity_batik)
 
-            # add all togethor
+            # add all together
             G_loss = (
                 loss_G_Z
                 + loss_G_H
@@ -80,9 +86,13 @@ def train_fn(
             )
 
         opt_gen.zero_grad()
-        g_scaler.scale(G_loss).backward()
-        g_scaler.step(opt_gen)
-        g_scaler.update()
+        if g_scaler:
+            g_scaler.scale(G_loss).backward()
+            g_scaler.step(opt_gen)
+            g_scaler.update()
+        else:
+            G_loss.backward()
+            opt_gen.step()
 
         if idx % 200 == 0:
             save_image(fake_batik * 0.5 + 0.5, f"saved_images/batik_{idx}.png")
@@ -142,17 +152,6 @@ def main():
         root_image=config.TRAIN_DIR + "/images",
         transform=config.transforms,
     )
-    # val_dataset = BatikImageDataset(
-    #     root_batik="cyclegan_test/batik",
-    #     root_image="cyclegan_test/images",
-    #     transform=config.transforms,
-    # )
-    # val_loader = DataLoader(
-    #     val_dataset,
-    #     batch_size=1,
-    #     shuffle=False,
-    #     pin_memory=True,
-    # )
     loader = DataLoader(
         dataset,
         batch_size=config.BATCH_SIZE,
@@ -160,8 +159,8 @@ def main():
         num_workers=config.NUM_WORKERS,
         pin_memory=True,
     )
-    g_scaler = torch.cuda.amp.GradScaler()
-    d_scaler = torch.cuda.amp.GradScaler()
+    g_scaler = torch.cuda.amp.GradScaler() if torch.cuda.is_available() else None
+    d_scaler = torch.cuda.amp.GradScaler() if torch.cuda.is_available() else None
 
     for epoch in range(config.NUM_EPOCHS):
         train_fn(
