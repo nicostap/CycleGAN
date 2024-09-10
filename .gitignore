@@ -156,7 +156,7 @@ cython_debug/
 
 /saved_images/**/*.png
 data/**/*.jpg
-*.tar
+*.zip
 
 # PyCharm
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can

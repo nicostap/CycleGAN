@@ -70,10 +70,10 @@ def train_fn(
             cycle_batik_loss = l1(batik, cycle_batik)
 
             # identity loss (remove these for efficiency if you set lambda_identity=0)
-            identity_image = gen_Z(image)
-            identity_batik = gen_H(batik)
-            identity_image_loss = l1(image, identity_image)
-            identity_batik_loss = l1(batik, identity_batik)
+            # identity_image = gen_Z(image)
+            # identity_batik = gen_H(batik)
+            # identity_image_loss = l1(image, identity_image)
+            # identity_batik_loss = l1(batik, identity_batik)
 
             # add all together
             G_loss = (
@@ -81,8 +81,8 @@ def train_fn(
                 + loss_G_H
                 + cycle_image_loss * config.LAMBDA_CYCLE
                 + cycle_batik_loss * config.LAMBDA_CYCLE
-                + identity_batik_loss * config.LAMBDA_IDENTITY
-                + identity_image_loss * config.LAMBDA_IDENTITY
+                # + identity_batik_loss * config.LAMBDA_IDENTITY
+                # + identity_image_loss * config.LAMBDA_IDENTITY
             )
 
         opt_gen.zero_grad()
